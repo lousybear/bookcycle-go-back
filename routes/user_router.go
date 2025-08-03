@@ -10,4 +10,5 @@ func RegisterUserRoutes(rg *gin.RouterGroup) {
 
 	user.POST("/signup", handlers.SignUpHandler)
 	user.POST("/signin", handlers.SignInHandler)
+	user.POST("/verifyotp", handlers.VerifyOTPHandler)
 }

@@ -48,7 +48,15 @@ func SignUpHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "user registered successfully"})
+	// Send OTP via Twilio
+	if err := utils.SendOTP(input.Phone); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send OTP"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "user registered successfully, OTP sent to phone",
+	})
 }
 
 func SignInHandler(c *gin.Context) {
@@ -73,7 +81,6 @@ func SignInHandler(c *gin.Context) {
 
 	var user models.User
 	err := collection.FindOne(context.TODO(), filter).Decode(&user)
-
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
@@ -87,10 +94,32 @@ func SignInHandler(c *gin.Context) {
 	token, err := utils.GenerateJWT(user.ID.Hex(), user.Username, user.Email, user.Phone)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "signed in successfully",
 		"token":   token,
 	})
+}
+
+func VerifyOTPHandler(c *gin.Context) {
+	var input struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+		return
+	}
+
+	ok, err := utils.VerifyOTP(input.Phone, input.Code)
+	if err != nil || !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "OTP verification failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "OTP verified successfully"})
+
 }
