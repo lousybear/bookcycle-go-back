@@ -99,6 +99,7 @@ func SignInHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "signed in successfully",
+		"user":    user.Username,
 		"token":   token,
 	})
 }

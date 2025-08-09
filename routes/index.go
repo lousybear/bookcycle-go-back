@@ -11,4 +11,5 @@ func RegisterRoutes(r *gin.Engine) {
 	api.GET("/ping", handlers.HealthCheck)
 
 	RegisterUserRoutes(api)
+	RegisterBookRoutes(api)
 }
