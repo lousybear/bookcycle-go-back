@@ -9,6 +9,7 @@ import (
 	"github.com/lousybear/bookcycle-go-back/models"
 	"github.com/lousybear/bookcycle-go-back/utils"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func SignUpHandler(c *gin.Context) {
@@ -42,20 +43,28 @@ func SignUpHandler(c *gin.Context) {
 	}
 	input.Password = hashedPass
 
-	_, err = collection.InsertOne(context.TODO(), input)
+	result, err := collection.InsertOne(context.TODO(), input)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "sign up failed"})
 		return
 	}
 
-	// Send OTP via Twilio
-	if err := utils.SendOTP(input.Phone); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send OTP"})
+	userID := result.InsertedID.(primitive.ObjectID).Hex()
+	token, err := utils.GenerateJWT(userID, input.Username, input.Email, input.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "user registered successfully, OTP sent to phone",
+		"message": "user registered successfully",
+		"user": gin.H{
+			"id":       userID,
+			"username": input.Username,
+			"email":    input.Email,
+			"phone":    input.Phone,
+		},
+		"token": token,
 	})
 }
 
@@ -97,30 +106,14 @@ func SignInHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "signed in successfully",
-		"user":    user.Username,
-		"token":   token,
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "user logged in successfully",
+		"user": gin.H{
+			"id":       user.ID.Hex(),
+			"username": user.Username,
+			"email":    user.Email,
+			"phone":    user.Phone,
+		},
+		"token": token,
 	})
-}
-
-func VerifyOTPHandler(c *gin.Context) {
-	var input struct {
-		Phone string `json:"phone"`
-		Code  string `json:"code"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
-		return
-	}
-
-	ok, err := utils.VerifyOTP(input.Phone, input.Code)
-	if err != nil || !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "OTP verification failed"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "OTP verified successfully"})
-
 }

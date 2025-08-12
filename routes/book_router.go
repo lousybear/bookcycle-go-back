@@ -8,6 +8,6 @@ import (
 func RegisterBookRoutes(rg *gin.RouterGroup) {
 	user := rg.Group("/books")
 
-	user.POST("/", handlers.AddBookHandler)
-	user.GET("/", handlers.GetAllBooksHandler)
+	user.POST("/addbook", handlers.AddBookHandler)
+	user.GET("/getallbooks", handlers.GetAllBooksHandler)
 }
